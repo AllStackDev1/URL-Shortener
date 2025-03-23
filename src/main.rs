@@ -3,6 +3,7 @@ use std::process;
 use log::{error, info};
 
 mod app;
+mod db;
 mod config;
 mod error;
 mod middleware;

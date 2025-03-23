@@ -1,44 +1,8 @@
-use dotenv::dotenv;
-use log::{info, warn, debug};
-use serde::Deserialize;
-use std::env;
-use std::net::IpAddr;
-use std::str::FromStr;
+use std::{env, net::IpAddr, str::FromStr};
 
-
-// Define a configuration error type
-#[derive(Debug)]
-pub enum ConfigError {
-    EnvVarError(env::VarError),
-    ParseError(String),
-}
-
-impl std::fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConfigError::EnvVarError(e) => write!(f, "Environment variable error: {}", e),
-            ConfigError::ParseError(e) => write!(f, "Parse error: {}", e),
-        }
-    }
-}
-
-impl std::error::Error for ConfigError {}
-
-impl From<env::VarError> for ConfigError {
-    fn from(error: env::VarError) -> Self {
-        ConfigError::EnvVarError(error)
-    }
-}
-
-// Result type for configuration functions
-type ConfigResult<T> = Result<T, ConfigError>;
-
-// Config struct that matches our environment variables
-#[derive(Debug, Deserialize, Clone)]
-pub struct Config {
-    pub server: ServerConfig,
-    pub app: AppConfig,
-}
+use dotenvy::dotenv;
+use log::{debug, info, warn};
+use serde::{Deserialize, Serialize};
 
 // Server-specific configuration
 #[derive(Debug, Deserialize, Clone)]
@@ -75,9 +39,59 @@ impl FromStr for Environment {
             "development" | "dev" => Ok(Environment::Development),
             "testing" | "test" => Ok(Environment::Testing),
             "production" | "prod" => Ok(Environment::Production),
-            _ => Err(format!("Invalid environment: {}. Must be one of: development, testing, production", s)),
+            _ => Err(format!(
+                "Invalid environment: {}. Must be one of: development, testing, production",
+                s
+            )),
         }
     }
+}
+
+// Define a configuration error type
+#[derive(Debug)]
+pub enum ConfigError {
+    EnvVarError(env::VarError),
+    ParseError(String),
+}
+
+impl std::fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConfigError::EnvVarError(e) => write!(f, "Environment variable error: {}", e),
+            ConfigError::ParseError(e) => write!(f, "Parse error: {}", e),
+        }
+    }
+}
+
+impl std::error::Error for ConfigError {}
+
+impl From<env::VarError> for ConfigError {
+    fn from(error: env::VarError) -> Self {
+        ConfigError::EnvVarError(error)
+    }
+}
+
+// Result type for configuration functions
+type ConfigResult<T> = Result<T, ConfigError>;
+
+// Database Config
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DatabaseConfig {
+    pub url: String,
+    pub max_connections: u32,
+    pub min_connections: u32,
+    pub use_migrations: bool,
+    pub skip_db_exists_check: bool,
+    pub connect_timeout_seconds: u64,
+    pub create_database_if_missing: bool,
+}
+
+// Config struct that matches our environment variables
+#[derive(Debug, Deserialize, Clone)]
+pub struct Config {
+    pub server: ServerConfig,
+    pub app: AppConfig,
+    pub db: DatabaseConfig,
 }
 
 impl Config {
@@ -97,8 +111,10 @@ impl Config {
         };
 
         // Get version from Cargo.toml or environment
-        let version = option_env!("CARGO_PKG_VERSION").unwrap_or("0.1.0").to_string();
-        
+        let version = option_env!("CARGO_PKG_VERSION")
+            .unwrap_or("0.1.0")
+            .to_string();
+
         // Create the app config
         let app = AppConfig {
             name: get_env_or_default("APP_NAME", "url-shortener")?,
@@ -107,7 +123,18 @@ impl Config {
             log_level: get_env_or_default("RUST_LOG", "info")?,
         };
 
-        let config = Config { server, app };
+        // Database config
+        let db = DatabaseConfig {
+            url: get_env_or_default("DATABASE_URL", "postgres://MrCEO:postgres@localhost:5432/kick-shortener")?,
+            max_connections: get_env_or_default("DATABASE_MAX_CONNECTIONS", "10")?,
+            min_connections: get_env_or_default("DATABASE_MIN_CONNECTIONS", "5")?,
+            connect_timeout_seconds: get_env_or_default("DATABASE_CONNECT_TIMEOUT_SECONDS", "5")?,
+            skip_db_exists_check: get_env_or_default("DATABASE_SKIP_DB_EXISTS_CHECK", "false")?,
+            use_migrations: get_env_or_default("DATABASE_USE_MIGRATIONS", "true")?,
+            create_database_if_missing: get_env_or_default("DATABASE_CREATE_DATABASE_IF_MISSING", "true")?,
+        };
+
+        let config = Config { db, app, server };
         info!("Configuration loaded successfully");
         debug!("Loaded config: {:?}", config);
 
@@ -115,21 +142,22 @@ impl Config {
     }
 }
 
-// Helper function to get an env variable with a default value
-fn get_env_or_default<T: std::str::FromStr>(key: &str, default: &str) -> ConfigResult<T> 
-where
-    T::Err: std::fmt::Display,
-{
-    match env::var(key) {
-        Ok(val) => val.parse::<T>().map_err(|e| {
-            ConfigError::ParseError(format!("Could not parse {}: {}", key, e))
-        }),
-        Err(env::VarError::NotPresent) => {
-            debug!("{} not set, using default: {}", key, default);
-            default.parse::<T>().map_err(|e| {
-                ConfigError::ParseError(format!("Could not parse default for {}: {}", key, e))
-            })
-        },
-        Err(e) => Err(ConfigError::EnvVarError(e)),
+/// Helper function to get an env variable with a default value
+fn get_env_or_default<T: std::str::FromStr>(key: &str, default: &str) -> ConfigResult<T>
+    where
+        T::Err: std::fmt::Display,
+    {
+        match env::var(key) {
+            Ok(val) => val
+                .parse::<T>()
+                .map_err(|e| ConfigError::ParseError(format!("Could not parse {}: {}", key, e))),
+            Err(env::VarError::NotPresent) => {
+                debug!("{} not set, using default: {}", key, default);
+                default.parse::<T>().map_err(|e| {
+                    ConfigError::ParseError(format!("Could not parse default for {}: {}", key, e))
+                })
+            }
+            Err(e) => Err(ConfigError::EnvVarError(e)),
+        }
     }
-}
+    

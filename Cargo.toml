@@ -15,11 +15,11 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 # Database
-sqlx = { version = "0.8.3", features = ["runtime-tokio-rustls", "postgres", "macros", "json", "chrono", "uuid"] }
-redis = { version = "0.29.1", features = ["tokio-comp", "connection-manager"] }
+sqlx = { version = "0.8.3", features = ["runtime-tokio-rustls", "postgres", "macros", "json", "chrono", "uuid", "migrate"] }
+redis = { version = "0.29.2", features = ["tokio-comp", "connection-manager"] }
 
-# Environment configuration
-dotenv = "0.15.0"
+# Environment configu0.29.2
+dotenvy = "0.15.7"
 config = "0.15.11"
 
 # Logging
@@ -50,13 +50,13 @@ chrono = { version = "0.4.26", features = ["serde"] }
 
 # Utilities
 rand = "0.9.0"
-uuid = { version = "1.4.1", features = ["v4", "serde"] }
+uuid = { version = "1.16.0", features = ["v4", "serde"] }
 
 [dev-dependencies]
 # Testing
 mockall = "0.13.1"
 criterion = "0.5.1"
-fake = { version = "2.6.1", features = ["chrono", "http"] }
+fake = { version = "4.2.0", features = ["chrono", "http"] }
 
 [profile.dev]
 opt-level = 0
