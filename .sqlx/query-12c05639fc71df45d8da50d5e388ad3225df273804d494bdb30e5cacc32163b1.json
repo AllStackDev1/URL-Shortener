@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                UPDATE shortened_urls\n                SET last_accessed = $1, access_count = $2, expires_at = $3\n                WHERE id = $4\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int4",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "12c05639fc71df45d8da50d5e388ad3225df273804d494bdb30e5cacc32163b1"
+}

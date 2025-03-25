@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT current_database() as db_name, version() as db_version",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "db_name",
+        "type_info": "Name"
+      },
+      {
+        "ordinal": 1,
+        "name": "db_version",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "992d0a59894bd1169559e19ca6425585b8fb11dba1519c3f6440951eb55a58a9"
+}

@@ -10,7 +10,7 @@ use log::{debug, error, info};
 use crate::{
     config::{Config, Environment},
     db::{Database, DatabaseError},
-    error::AppError,
+    errors::AppError,
     routes,
     types::AppState,
 };

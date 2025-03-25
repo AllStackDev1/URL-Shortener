@@ -1,11 +1,37 @@
+// src/models/shortened_url.rs - Pure data structures
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+use uuid::Uuid;
+use sqlx::FromRow;
+use validator::Validate;
+
+use crate::validations::{validate_custom_alias, validate_url};
+
+// DTO for creating a new shortened URL
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct CreateShortenedUrlDto {
+    #[validate(custom(function = "validate_url"))]
+    pub original_url: String,
+
+    // #[validate(skip)]
+    #[validate(custom(function = "validate_custom_alias"))]
+    pub custom_alias: Option<String>,
+
+    pub expires_at: Option<DateTime<Utc>>,
+
+    #[validate(range(min = 0, max = 365, message = "Expiry days must be between 0 and 365"))]
+    pub expires_in_days: Option<u32>,
+
+    // validate custom metadata
+    pub metadata: Option<JsonValue>,
+}
 
 /// Represents a shortened URL in the system
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, FromRow, Serialize, Deserialize)]
 pub struct ShortenedUrl {
     /// The unique ID of the shortened URL
-    pub id: Option<i64>,
+    pub id: Option<Uuid>,
 
     /// The original, long URL that was shortened
     pub original_url: String,
@@ -24,70 +50,60 @@ pub struct ShortenedUrl {
 
     /// When this shortened URL expires (None means it never expires)
     pub expires_at: Option<DateTime<Utc>>,
+
+    /// The identifier of the user or entity that created this shortened URL
+    // pub created_by: Option<String>,
+
+    /// Indicates whether the short code was custom or auto-generated
+    pub is_custom_code: bool,
+
+    /// Indicates whether the shortened URL is active or not
+    pub is_active: bool,
+
+    /// Additional metadata associated with the shortened URL
+    pub metadata: Option<JsonValue>,
 }
 
 impl ShortenedUrl {
-    /// Creates a new ShortenedUrl with default values
-    pub fn new(original_url: String, short_code: String) -> Self {
-        ShortenedUrl {
-            id: None,               // No ID until stored in database
-            original_url,           // Use the provided original URL
-            short_code,             // Use the provided short code
-            created_at: Utc::now(), // Set creation time to current time
-            last_accessed: None,    // No access yet
-            access_count: 0,        // Initialize access count to zero
-            expires_at: None,       // No expiration by default
-        }
-    }
-
-    /// Increments the access count and updates the last_accessed timestamp
-    pub fn record_access(&mut self) {
-        self.access_count += 1;
-        self.last_accessed = Some(Utc::now());
-    }
-
-    /// Checks if the shortened URL is valid (not expired)
-    pub fn is_valid(&self) -> bool {
+    /// Checks if the shortened URL has expired
+    pub fn is_expired(&self) -> bool {
         match self.expires_at {
-            Some(expiry) => Utc::now() < expiry,
-            None => true, // URLs without expiration are always valid
+            Some(expiry) => Utc::now() > expiry,
+            None => false,
         }
     }
-
-    /// Creates a new ShortenedUrl with a specific expiration time
-    pub fn with_expiration(
-        original_url: String,
-        short_code: String,
-        expires_at: DateTime<Utc>,
-    ) -> Self {
-        ShortenedUrl {
-            id: None,
-            original_url,
-            short_code,
-            created_at: Utc::now(),
-            last_accessed: None,
-            access_count: 0,
-            expires_at: Some(expires_at),
-        }
+    
+    /// Convenience method to check if the URL is still valid (not expired)
+    pub fn is_valid(&self) -> bool {
+        !self.is_expired()
     }
+}
 
-    /// Creates a new ShortenedUrl that expires after a specified duration from now
-    pub fn with_duration(original_url: String, short_code: String, duration: Duration) -> Self {
-        let expires_at = Utc::now() + duration;
+// DTO for response with shortened URL details
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ShortenedUrlResponseDto {
+    pub id: Option<Uuid>,
+    pub is_active: bool,
+    pub access_count: i64,
+    pub short_code: String,
+    pub original_url: String,
+    pub created_at: DateTime<Utc>,
+    pub metadata: Option<JsonValue>,
+    pub expires_at: Option<DateTime<Utc>>,
+}
 
-        ShortenedUrl {
-            id: None,
-            original_url,
-            short_code,
-            created_at: Utc::now(),
-            last_accessed: None,
-            access_count: 0,
-            expires_at: Some(expires_at),
+// Conversion functions between DTO and model
+impl From<ShortenedUrl> for ShortenedUrlResponseDto {
+    fn from(url: ShortenedUrl) -> Self {
+        ShortenedUrlResponseDto {
+            id: url.id,
+            metadata: url.metadata,
+            is_active: url.is_active,
+            expires_at: url.expires_at,
+            short_code: url.short_code,
+            created_at: url.created_at,
+            original_url: url.original_url,
+            access_count: url.access_count,
         }
-    }
-
-    /// Removes the expiration time, making the URL never expire
-    pub fn remove_expiration(&mut self) {
-        self.expires_at = None;
     }
 }

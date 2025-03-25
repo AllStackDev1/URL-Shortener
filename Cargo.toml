@@ -24,13 +24,14 @@ config = "0.15.11"
 
 # Logging
 env_logger = "0.11.7"
-log = "0.4"
+log = "0.4.27"
 
 # Error handling
 thiserror = "2.0.12"
 anyhow = "1.0"
 
 # URL handling and hashing
+validator = { version = "0.20.0", features = ["derive"] }
 url = "2.4.0"
 base64 = "0.22.1"
 sha2 = "0.10.7"
@@ -51,6 +52,7 @@ chrono = { version = "0.4.26", features = ["serde"] }
 # Utilities
 rand = "0.9.0"
 uuid = { version = "1.16.0", features = ["v4", "serde"] }
+async-trait = "0.1.88"
 
 [dev-dependencies]
 # Testing
