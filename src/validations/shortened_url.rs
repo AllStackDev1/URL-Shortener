@@ -1,4 +1,6 @@
 use url::Url;
+use chrono::{DateTime, Utc};
+
 use validator::ValidationError;
 
 /// Validates that a URL string is properly formatted and uses http/https
@@ -26,10 +28,10 @@ pub fn validate_url(url_str: &str) -> Result<(), ValidationError> {
 /// - Only contains URL-safe characters
 pub fn validate_custom_alias(alias: &str) -> Result<(), ValidationError> {
     // Check length
-    if alias.is_empty() || alias.len() > 100 {
-        return Err(ValidationError::new(
-            "Custom alias must be between 1 and 100 characters",
-        ));
+    if alias.is_empty() || alias.len() > 10 {
+        let mut err = ValidationError::new("custom_alias_length");
+        err.message = Some("Custom alias must be between 1 and 10 characters".into());
+        return Err(err);
     }
 
     // Ensure it only contains URL-safe characters
@@ -43,6 +45,18 @@ pub fn validate_custom_alias(alias: &str) -> Result<(), ValidationError> {
     }
 
     Ok(())
+}
+
+
+/// Validates that a date is in the future
+pub fn validate_date(date_str: &DateTime<Utc>) -> Result<(), ValidationError> {
+    // Ensure the date is in the future
+    if date_str < &Utc::now() {
+        return Err(ValidationError::new("Date must be in the future"));
+    }
+
+    Ok(())
+
 }
 
 #[cfg(test)]
@@ -70,5 +84,16 @@ mod tests {
         let too_long = "a".repeat(101);
         assert!(validate_custom_alias(&too_long).is_err());
         assert!(validate_custom_alias("invalid/alias").is_err());
+    }
+
+    #[test]
+    fn test_validate_date() {
+        // Valid dates
+        let future_date = Utc::now() + chrono::Duration::days(1);
+        assert!(validate_date(&future_date).is_ok());
+
+        // Invalid dates
+        let past_date = Utc::now() - chrono::Duration::days(1);
+        assert!(validate_date(&past_date).is_err());
     }
 }

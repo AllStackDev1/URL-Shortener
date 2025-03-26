@@ -96,7 +96,7 @@ impl Database {
     }
 
     /// Get a reference to the connection pool
-    pub fn pool(&self) -> &PgPool {
+    pub fn get_pool(&self) -> &PgPool {
         &self.pool
     }
 
@@ -107,7 +107,7 @@ impl Database {
 
         // Try a simple query to verify the connection is working
         let result = sqlx::query("SELECT 1 as result")
-            .fetch_one(self.pool())
+            .fetch_one(self.get_pool())
             .await;
 
         let elapsed = start.elapsed();
@@ -119,7 +119,7 @@ impl Database {
                     DbInfo,
                     "SELECT current_database() as name, version() as version",
                 )
-                .fetch_one(self.pool())
+                .fetch_one(self.get_pool())
                 .await
                 {
                     Ok(info) => Some(info),
@@ -215,6 +215,9 @@ impl Database {
     async fn run_migrations(pool: &PgPool) -> DbResult<()> {
         info!("Running database migrations");
 
+        // can we check if a migration file has been modified, if so, drop the database and recreate it only in development
+        
+
         match sqlx::migrate!("./migrations").run(pool).await {
             Ok(_) => {
                 info!("Database migrations completed successfully");
@@ -247,10 +250,6 @@ impl Database {
 
 /// Extract database name from a PostgreSQL connection string
 fn extract_db_name_from_url(url: &str) -> Option<String> {
-    // Handle both formats:
-    // postgres://user:pass@host:port/dbname
-    // postgres://user:pass@host:port/dbname?param=value
-
     // Split by '/' to get the path part
     let parts: Vec<&str> = url.split('/').collect();
     if parts.len() < 4 {

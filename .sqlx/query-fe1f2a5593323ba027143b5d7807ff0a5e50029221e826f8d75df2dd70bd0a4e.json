@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT id, original_url, short_code, created_at, expires_at, last_accessed, access_count, is_custom_code, is_active, metadata\n                FROM shortened_urls\n                WHERE id = $1\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "original_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "short_code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "expires_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "last_accessed",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "access_count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "is_custom_code",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 8,
+        "name": "is_active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 9,
+        "name": "metadata",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "fe1f2a5593323ba027143b5d7807ff0a5e50029221e826f8d75df2dd70bd0a4e"
+}

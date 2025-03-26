@@ -10,7 +10,7 @@ CREATE TABLE shortened_urls (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMP WITH TIME ZONE, -- Nullable for no expiration
     last_accessed TIMESTAMP WITH TIME ZONE DEFAULT NOW(), -- Default to creation time, nullable still allowed
-    access_count INTEGER NOT NULL DEFAULT 0,
+    access_count BIGINT NOT NULL DEFAULT 0,
     -- created_by uuid_generate_v4() NOT NULL DEFAULT 'anonymous', 
     is_custom_code BOOLEAN NOT NULL DEFAULT FALSE,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,

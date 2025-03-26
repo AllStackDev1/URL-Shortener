@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 
-use crate::db::{Database, DatabaseHealth};
+use crate::{db::{Database, DatabaseHealth}, errors::AppError};
 
 #[derive(Serialize, Deserialize)]
 pub struct ResponsePayload {
@@ -17,9 +17,10 @@ pub struct HealthStatus {
     pub uptime_seconds: u64,
 }
 
-// Define an AppState struct to hold shared application state
 pub struct AppState {
     pub start_time: Instant,
     pub db: Database,
     pub version: String,
 }
+
+pub type Result<T> = std::result::Result<T, AppError>;

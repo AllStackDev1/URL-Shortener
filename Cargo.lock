@@ -3263,6 +3263,7 @@ dependencies = [
  "env_logger",
  "fake",
  "futures",
+ "futures-util",
  "log",
  "mockall",
  "nanoid",

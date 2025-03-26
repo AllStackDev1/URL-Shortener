@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM shortened_urls\n            WHERE id = $1\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0d5c904f6cba933517c64c5749dbc7110305934e13eb2345f551124666c3bc58"
+}

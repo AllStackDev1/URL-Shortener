@@ -1,22 +1,24 @@
 use std::time::Instant;
 
+use actix_cors::Cors;
 use actix_web::{
+    http,
     middleware::{DefaultHeaders, Logger},
     web, App, HttpServer,
 };
+
 use env_logger::Env;
 use log::{debug, error, info};
 
 use crate::{
     config::{Config, Environment},
     db::{Database, DatabaseError},
-    errors::AppError,
+    middleware::RequestLogger,
     routes,
-    types::AppState,
+    services,
+    types::{Result as AppResult, AppState},
+    AppError,
 };
-
-// Custom result type for the application
-pub type AppResult<T> = Result<T, AppError>;
 
 // Setup logging with custom format and configuration
 fn setup_logging(config: &Config) -> Result<(), AppError> {
@@ -46,11 +48,9 @@ pub async fn server() -> AppResult<()> {
     let start_time = Instant::now();
 
     // Log startup information
-    info!("Starting {} v{}", config.app.name, config.app.version);
-    info!("Environment: {:?}", config.app.environment);
     info!(
-        "Binding to {}:{} with {} workers",
-        config.server.host, config.server.port, config.server.workers
+        "Starting {} v{} in {:?} mode.",
+        config.app.name, config.app.version, config.app.environment
     );
 
     if config.app.environment == Environment::Development {
@@ -74,12 +74,8 @@ pub async fn server() -> AppResult<()> {
     };
 
     // Initialize database connection
-    info!("Initializing database connection");
     let db = match Database::connect(&config.db).await {
-        Ok(db) => {
-            info!("Database connected successfully");
-            db
-        }
+        Ok(db) => db,
         Err(e) => {
             error!("Failed to initialize database: {}", e);
 
@@ -129,7 +125,39 @@ pub async fn server() -> AppResult<()> {
 
     // Start the HTTP server
     let _server = HttpServer::new(move || {
+        // Create a default CORS policy that is restrictive
+        let cors = Cors::default()
+            // Allow only your frontend origin in a production environment
+            .allowed_origin("http://localhost:3000") // Replace with your frontend URL
+            // For development environments, you might want to allow localhost with different ports
+            .allowed_origin("http://127.0.0.1:3000")
+            // Optionally allow development URLs conditionally
+            .allowed_origin_fn(|origin, _req_head| {
+                // In development, you might want to be more permissive
+                if cfg!(debug_assertions) {
+                    // Check if origin starts with http://localhost:
+                    origin.as_bytes().starts_with(b"http://localhost:")
+                } else {
+                    // In production, be strict
+                    false
+                }
+            })
+            // Define which headers are allowed
+            .allowed_headers(vec![
+                http::header::AUTHORIZATION,
+                http::header::ACCEPT,
+                http::header::CONTENT_TYPE,
+            ])
+            // Define which methods are allowed
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+            // Allow credentials (cookies, authorization headers, TLS client certificates)
+            .supports_credentials()
+            // Set max age for preflight requests
+            .max_age(3600); // 1 hour
+
         let app = App::new()
+            // Register the CORS middleware
+            .wrap(cors)
             .app_data(web::Data::new(AppState {
                 start_time,
                 db: db.clone(),
@@ -139,32 +167,21 @@ pub async fn server() -> AppResult<()> {
             .app_data(web::Data::new(app_config.clone()))
             .wrap(Logger::new(log_format))
             // Add request tracking ID
-            .wrap(DefaultHeaders::new().add(("X-Request-ID", uuid::Uuid::new_v4().to_string())));
-
-        // Add middleware to log the beginning and end of each request (in debug mode)
-        // if enable_debug_logging {
-        //     app = app.wrap_fn(move |req, srv| {
-        //         let path = req.path().to_owned();
-        //         let method = req.method().clone();
-
-        //         debug!("Processing request: {} {}", method, path);
-
-        //         let fut = srv.call(req);
-        //         async move {
-        //             let res = fut.await?;
-        //             debug!("Response: {} {} - status: {}", method, path, res.status());
-        //             Ok(res)
-        //         }
-        //     });
-        // }
+            .wrap(DefaultHeaders::new().add(("X-Request-ID", uuid::Uuid::new_v4().to_string())))
+            // Add middleware to log the beginning and end of each request (in debug mode)
+            .wrap(RequestLogger::new(enable_debug_logging));
 
         // Configure routes
-        app.configure(routes::configure_routes)
+        app.configure(|cfg| {
+                // Register services and routes 
+                services::register(db.clone(), cfg);
+                routes::configure_routes(cfg);
+            }
+        )
     })
     .workers(config.server.workers)
     .bind((config.server.host.to_string(), config.server.port))?
     .run();
-    // .await?;
 
     // Get the server handle to control shutdown
     let server_handle = _server.handle();

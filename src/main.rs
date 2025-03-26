@@ -1,11 +1,12 @@
 use std::process;
 
-use log::{error, info};
+use log::error;
 
 mod app;
 mod config;
 mod db;
 mod errors;
+mod handlers;
 mod middleware;
 mod models;
 mod repositories;
@@ -16,27 +17,29 @@ mod types;
 mod utils;
 mod validations;
 
-use app::server;
 use errors::AppError;
 
 #[actix_web::main]
 async fn main() {
-    // Run the server with error handling
-    match server().await {
-        Ok(_) => {
-            info!("Server shutdown gracefully");
-        }
-        Err(AppError::Server(e)) => {
-            error!("Server error: {}", e);
-            process::exit(1);
-        }
-        Err(AppError::Config(e)) => {
-            error!("Configuration error: {}", e);
-            process::exit(2);
-        }
-        Err(AppError::Logger(_)) => {
-            error!("Logger error");
-            process::exit(3);
+    // Run the server with error handling for critical failures
+    if let Err(err) = app::server().await {
+        match err {
+            AppError::Server(e) => {
+                error!("Critical server error: {}", e);
+                process::exit(1);
+            }
+            AppError::Config(e) => {
+                error!("Critical configuration error: {}", e);
+                process::exit(2);
+            }
+            AppError::Logger(e) => {
+                error!("Critical logger error: {}", e);
+                process::exit(3);
+            }
+            _ => {
+                // Log unexpected errors, but don't exit
+                error!("Unexpected error: {}", err);
+            }
         }
     }
 }
